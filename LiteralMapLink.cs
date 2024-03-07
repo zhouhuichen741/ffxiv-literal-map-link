@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Runtime.InteropServices;
@@ -14,26 +14,27 @@ using Dalamud.IoC;
 using Dalamud.Logging;
 using Dalamud.Plugin;
 using Lumina.Excel.GeneratedSheets;
+using Dalamud.Plugin.Services;
+using Dalamud.Hooking;
 
 namespace LiteralMapLink
 {
     public class LiteralMapLink : IDalamudPlugin
     {
         [PluginService]
-        [RequiredVersion("1.0")]
         private DalamudPluginInterface PluginInterface { get; init; }
 
         [PluginService]
-        [RequiredVersion("1.0")]
-        private SigScanner SigScanner { get; init; }
+        private ISigScanner SigScanner { get; init; }
 
         [PluginService]
-        [RequiredVersion("1.0")]
-        private ChatGui Chat { get; init; }
+        private IChatGui Chat { get; init; }
 
         [PluginService]
-        [RequiredVersion("1.0")]
-        private DataManager Data { get; init; }
+        private IDataManager Data { get; init; }
+
+        [PluginService]
+        internal IGameInteropProvider GameInteropProvider { get; set; }
 
         [UnmanagedFunctionPointer(CallingConvention.ThisCall)]
         private delegate IntPtr ParseMessageDelegate(IntPtr a, IntPtr b);
@@ -73,9 +74,9 @@ namespace LiteralMapLink
         {
             var parseMessageAddress = this.SigScanner.ScanText(
                 "E8 ???????? 48 8B D0 48 8D 4C 24 30 E8 ???????? 48 8B 44 24 30 80 38 00 0F 84");
-            this.parseMessageHook = Hook<ParseMessageDelegate>.FromAddress(parseMessageAddress, new(HandleParseMessageDetour));
+            this.parseMessageHook = GameInteropProvider.HookFromAddress<ParseMessageDelegate>(parseMessageAddress, new(HandleParseMessageDetour));
             this.parseMessageHook.Enable();
-
+  
             this.Chat.ChatMessage += HandleChatMessage;
 
             foreach (var territoryType in this.Data.GetExcelSheet<TerritoryType>())
